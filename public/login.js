@@ -13,7 +13,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         const data = await response.json();
         if (data.success) {
             alert('Login successful! Redirecting...');
-            window.location.href = 'welcome.html'; // Redirect to welcome screen
+            window.location.href = 'message-board.html'; // Redirects to message board
         } else {
             alert('Invalid email or password.');
         }

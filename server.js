@@ -1,6 +1,5 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const bcrypt = require('bcrypt');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
@@ -22,7 +21,7 @@ const db = new sqlite3.Database('./database.db', (err) => {
     }
 });
 
-// Create Users Table if it doesn't exist
+// Create Users Table
 db.run(`
     CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,33 +29,30 @@ db.run(`
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL
     )
-`, (err) => {
-    if (err) console.error('❌ Error Creating Users Table:', err.message);
-});
+`);
 
-// 🚀 Sign-Up Route
+// Create Messages Table
+db.run(`
+    CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL
+    )
+`);
+
+// Sign-Up Route
 app.post('/signup', (req, res) => {
     const { name, email, password } = req.body;
 
-    // Hash the password before storing it
-    bcrypt.hash(password, 10, (err, hashedPassword) => {
-        if (err) return res.json({ success: false, message: 'Error hashing password' });
-
-        // Insert user into SQLite database
-        db.run(`INSERT INTO users (name, email, password) VALUES (?, ?, ?)`,
-            [name, email, hashedPassword],
-            function (err) {
-                if (err) {
-                    return res.json({ success: false, message: 'Email already registered' });
-                }
-                console.log('✅ New User Registered:', email);
-                res.json({ success: true, message: 'User registered successfully!' });
-            }
-        );
-    });
+    db.run(`INSERT INTO users (name, email, password) VALUES (?, ?, ?)`,
+        [name, email, password],
+        function (err) {
+            if (err) return res.json({ success: false, message: 'Email already registered' });
+            res.json({ success: true, message: 'User registered successfully!' });
+        }
+    );
 });
 
-// 🚀 Login Route
+// Login Route
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
 
@@ -64,25 +60,29 @@ app.post('/login', (req, res) => {
         if (err || !user) {
             return res.json({ success: false, message: 'Invalid email or password' });
         }
-
-        // Compare stored hashed password with input password
-        bcrypt.compare(password, user.password, (err, isMatch) => {
-            if (err || !isMatch) {
-                return res.json({ success: false, message: 'Invalid email or password' });
-            }
-
-            console.log('✅ User Logged In:', email);
-            res.json({ success: true, message: 'Login successful!' });
-        });
+        res.json({ success: true, message: 'Login successful!' });
     });
 });
 
-// 🚀 Serve Sign-Up Page at Root
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'signup.html'));
+// Post a Message
+app.post('/message', (req, res) => {
+    const { message } = req.body;
+
+    db.run(`INSERT INTO messages (text) VALUES (?)`, [message], function (err) {
+        if (err) return res.status(500).json({ success: false, message: 'Error posting message' });
+        res.json({ success: true, message: 'Message posted!' });
+    });
 });
 
-// 🚀 Start Server
+// Get All Messages
+app.get('/messages', (req, res) => {
+    db.all(`SELECT * FROM messages ORDER BY id DESC`, [], (err, rows) => {
+        if (err) return res.status(500).json({ success: false, message: 'Error fetching messages' });
+        res.json(rows);
+    });
+});
+
+// Start Server
 app.listen(PORT, () => {
     console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
