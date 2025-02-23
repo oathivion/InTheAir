@@ -19,12 +19,6 @@ async function sendMessage() {
     }
 }
 
-// Convert UNIX timestamp to readable format
-function formatTimestamp(timestamp) {
-    const date = new Date(timestamp);
-    return date.toLocaleString(); // Formats date in a readable way
-}
-
 async function fetchMessages() {
     const response = await fetch('/messages');
     const messages = await response.json();
@@ -35,7 +29,7 @@ async function fetchMessages() {
     messages.forEach(msg => {
         const div = document.createElement('div');
         div.classList.add('message');
-        div.innerHTML = `<strong>${formatTimestamp(msg.created_at)}</strong><br>${msg.text}`;
+        div.textContent = msg.text;
         messagesDiv.appendChild(div);
     });
 }

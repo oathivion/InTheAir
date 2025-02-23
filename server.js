@@ -21,42 +21,62 @@ const db = new sqlite3.Database('./database.db', (err) => {
     }
 });
 
-// Create Messages Table (If not exists)
+// Create Users Table
 db.run(`
-    CREATE TABLE IF NOT EXISTS messages (
+    CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        text TEXT NOT NULL,
-        created_at INTEGER DEFAULT (strftime('%s', 'now') * 1000)
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
     )
 `);
 
-// ✅ Automatically Delete Messages Older Than 7 Days Using JavaScript
-setInterval(() => {
-    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+// Create Messages Table
+db.run(`
+    CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL
+    )
+`);
 
-    db.run(`DELETE FROM messages WHERE created_at <= ?`, [sevenDaysAgo], function (err) {
-        if (err) {
-            console.error("❌ Error deleting old messages:", err.message);
-        } else {
-            console.log("🗑️ Deleted messages older than 7 days.");
+// Sign-Up Route
+app.post('/signup', (req, res) => {
+    const { name, email, password } = req.body;
+
+    db.run(`INSERT INTO users (name, email, password) VALUES (?, ?, ?)`,
+        [name, email, password],
+        function (err) {
+            if (err) return res.json({ success: false, message: 'Email already registered' });
+            res.json({ success: true, message: 'User registered successfully!' });
         }
-    });
-}, 24 * 60 * 60 * 1000); // Runs every 24 hours
+    );
+});
 
-// 🚀 Post a Message with Timestamp
+// Login Route
+app.post('/login', (req, res) => {
+    const { email, password } = req.body;
+
+    db.get(`SELECT * FROM users WHERE email = ?`, [email], (err, user) => {
+        if (err || !user) {
+            return res.json({ success: false, message: 'Invalid email or password' });
+        }
+        res.json({ success: true, message: 'Login successful!' });
+    });
+});
+
+// Post a Message
 app.post('/message', (req, res) => {
     const { message } = req.body;
-    const timestamp = Date.now(); // Get current time in milliseconds
 
-    db.run(`INSERT INTO messages (text, created_at) VALUES (?, ?)`, [message, timestamp], function (err) {
+    db.run(`INSERT INTO messages (text) VALUES (?)`, [message], function (err) {
         if (err) return res.status(500).json({ success: false, message: 'Error posting message' });
         res.json({ success: true, message: 'Message posted!' });
     });
 });
 
-// 🚀 Get All Messages (Newest First)
+// Get All Messages
 app.get('/messages', (req, res) => {
-    db.all(`SELECT * FROM messages ORDER BY created_at DESC`, [], (err, rows) => {
+    db.all(`SELECT * FROM messages ORDER BY id DESC`, [], (err, rows) => {
         if (err) return res.status(500).json({ success: false, message: 'Error fetching messages' });
         res.json(rows);
     });
